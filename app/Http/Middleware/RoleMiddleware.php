@@ -15,7 +15,7 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, string $role): Response
     {
-        $user = $request->user();
+        $user = $request->user('sanctum') ?? $request->user();
 
         if (!$user) {
             return response()->json([

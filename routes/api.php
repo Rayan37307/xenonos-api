@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Chat\ChatController;
 use App\Http\Controllers\Api\Chat\TypingIndicatorController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Analytics\DashboardController;
+use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Auth\LoginController;
 
 /*
@@ -27,7 +28,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     // Dashboard
     Route::get('dashboard', [LoginController::class, 'dashboardApi']);
 
@@ -53,8 +54,17 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('users/{id}', [AdminUserController::class, 'destroy']);
             Route::get('workers', [AdminUserController::class, 'workers']);
             Route::get('clients', [AdminUserController::class, 'clients']);
+
+            // Invoice routes (admin only)
+            Route::post('invoices', [InvoiceController::class, 'store']);
+            Route::put('invoices/{id}', [InvoiceController::class, 'update']);
+            Route::delete('invoices/{id}', [InvoiceController::class, 'destroy']);
         });
     });
+
+    // Invoice routes (public to authenticated users)
+    Route::get('invoices', [InvoiceController::class, 'index']);
+    Route::get('invoices/{id}', [InvoiceController::class, 'show']);
 
     // Project routes
     Route::prefix('projects')->group(function () {

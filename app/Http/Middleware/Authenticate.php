@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 class Authenticate
 {
@@ -15,24 +16,11 @@ class Authenticate
      */
     public function handle(Request $request, Closure $next, ?string ...$guards): Response
     {
-        // If guards are specified, use them
-        if ($guards) {
-            foreach ($guards as $guard) {
-                if ($guard === 'sanctum') {
-                    // Use Sanctum token authentication
-                    if (!$request->user('sanctum')) {
-                        return response()->json([
-                            'message' => 'Unauthenticated.',
-                        ], 401);
-                    }
-                    return $next($request);
-                }
-            }
-        }
-
         // Check for Sanctum token authentication (API)
         if ($request->expectsJson() || $request->is('api/*')) {
-            if (!$request->user()) {
+            $user = $request->user('sanctum');
+            
+            if (!$user) {
                 return response()->json([
                     'message' => 'Unauthenticated.',
                 ], 401);
