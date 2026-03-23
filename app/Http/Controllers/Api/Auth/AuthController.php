@@ -1,0 +1,134 @@
+<?php
+
+namespace App\Http\Controllers\Api\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Services\AuthService;
+use App\Http\Resources\UserResource;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
+
+class AuthController extends Controller
+{
+    public function __construct(
+        private AuthService $authService
+    ) {}
+
+    /**
+     * Register a new user.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'role' => ['sometimes', 'in:admin,client,worker'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        try {
+            $user = $this->authService->register($validated);
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'User registered successfully',
+                'user' => new UserResource($user),
+                'token' => $token,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Registration failed',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Login user.
+     */
+    public function login(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        try {
+            $result = $this->authService->login($validated);
+
+            return response()->json([
+                'message' => 'Login successful',
+                'user' => new UserResource($result['user']),
+                'token' => $result['token'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Invalid credentials',
+                'errors' => $e->errors(),
+            ], 401);
+        }
+    }
+
+    /**
+     * Logout user.
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $this->authService->logout($request->user());
+
+        return response()->json([
+            'message' => 'Logged out successfully',
+        ]);
+    }
+
+    /**
+     * Get authenticated user profile.
+     */
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json([
+            'user' => new UserResource($request->user()->load('clientProfile')),
+        ]);
+    }
+
+    /**
+     * Update user profile.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'password' => ['sometimes', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $this->authService->updateProfile($user, $validated);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => new UserResource($user),
+        ]);
+    }
+
+    /**
+     * Update user avatar.
+     */
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'max:2048'],
+        ]);
+
+        $user = $this->authService->updateAvatar($request->user(), $request->file('avatar'));
+
+        return response()->json([
+            'message' => 'Avatar updated successfully',
+            'user' => new UserResource($user),
+        ]);
+    }
+}

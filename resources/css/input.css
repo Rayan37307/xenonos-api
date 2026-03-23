@@ -1,0 +1,125 @@
+
+/* From Uiverse.io by fejr_8483 */
+.ds-label {
+  letter-spacing: 0.1em;
+  transition: 0.5s;
+  position: relative;
+  font-size: 17px;
+  background: #333;
+  border: none;
+  color: #fff;
+  display: block;
+  width: 100%;
+  max-width: 350px;
+  padding: 5px 8px 5px 10px;
+  text-align: left;
+  transition: all 0.5s ease;
+}
+
+.ds-label:hover,
+.ds-label:focus-within {
+  letter-spacing: 0.25em;
+  background: #7000ff;
+  color: #7000ff;
+  box-shadow: 0 0 45px #6f00ff69;
+}
+
+.ds-label::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: #171B26;
+}
+
+.ds-label span {
+  position: relative;
+  z-index: 1;
+}
+
+.ds-label i {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.ds-label i::before {
+  content: "";
+  position: absolute;
+  border: 2px solid #7000ff;
+  width: 7px;
+  height: 4px;
+  top: -3.5px;
+  left: 80%;
+  background: #171B26;
+  transform: translateX(-50%);
+  transition: 0.5s;
+}
+
+.ds-label:hover i::before {
+  width: 20px;
+  left: 20%;
+}
+
+.ds-label i::after {
+  content: "";
+  position: absolute;
+  border: 2px solid #7000ff;
+  width: 7px;
+  height: 4px;
+  bottom: -3.5px;
+  left: 20%;
+  background: #222222;
+  transform: translateX(-50%);
+  transition: 0.5s;
+}
+
+.ds-label:hover i::after {
+  width: 20px;
+  left: 80%;
+}
+
+.ds-input-icon {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  transform: translate(-50%, -50%);
+  background-color: transparent;
+  padding: 0.3em;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 38px;
+  height: 38px;
+  opacity: 0.5;
+  transition: all 0.5s ease;
+}
+
+.icon {
+  background-size: cover;
+  height: 100%;
+}
+
+.ds_textinput {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  padding-left: 50px;
+  font-size: 16px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 50px;
+  margin-right: 0px;
+  padding-right: 10px;
+  width: calc(100% - 5%);
+  color: rgb(255, 255, 255);
+  pointer-events: auto;
+}
+
+.ds_textinput:focus ~ .ds-input-icon {
+  opacity: 1;
+}
+
+.ds_textinput:hover ~ .ds-input-icon {
+  opacity: 1;
+}

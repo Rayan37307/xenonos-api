@@ -1,0 +1,121 @@
+.background-shadow-327 {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.5);
+  background-color: rgba(34, 197, 94, 1);
+  border-radius: 9999px;
+}
+
+.text-328 {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  text-align: left;
+  font-family: var(--font-family-inter);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 1px;
+  line-height: 15px;
+  text-decoration: none;
+  text-transform: uppercase;
+  color: var(--text-rgb-199-196-215);
+}
+
+.container-326 {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  padding: 0px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+}
+
+.overlay-329 {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  background-color: rgba(70, 69, 84, 0.20000000298023224);
+  border-radius: 9999px;
+}
+
+.text-331 {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  text-align: left;
+  font-family: var(--font-family-inter);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 1px;
+  line-height: 15px;
+  text-decoration: none;
+  text-transform: uppercase;
+  color: var(--text-rgb-199-196-215);
+}
+
+.container-330 {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 0px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+}
+
+.container-325 {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+  padding: 0px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+}
+
+.text-333 {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  text-align: left;
+  font-family: var(--font-family-inter);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 1px;
+  line-height: 15px;
+  text-decoration: none;
+  text-transform: uppercase;
+  color: var(--text-rgb-199-196-215);
+}
+
+.container-332 {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 0px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+}
+
+.footer-system-status-324 {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 293.2799987792969px;
+  padding: 24px 40px 24px 40px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  background-color: #0F131D;
+  width: 100%;
+  border-top: 1px solid rgba(70, 69, 84, 0.05000000074505806);
+}
