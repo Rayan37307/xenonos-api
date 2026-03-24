@@ -37,6 +37,8 @@ class UserController extends Controller
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'password' => ['sometimes', 'string', 'min:8', 'confirmed'],
+            'phone_number' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'profile_image_link' => ['sometimes', 'nullable', 'string', 'url', 'max:255'],
         ]);
 
         $user = $this->userService->update($user, $validated);

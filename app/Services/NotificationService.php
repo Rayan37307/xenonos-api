@@ -8,9 +8,30 @@ use App\Models\Message;
 use App\Notifications\TaskAssignedNotification;
 use App\Notifications\NewMessageNotification;
 use App\Notifications\TaskStatusUpdatedNotification;
+use App\Notifications\CustomNotification;
 
 class NotificationService
 {
+    /**
+     * Send custom notification to user(s).
+     */
+    public function sendCustomNotification(
+        User|array $users,
+        string $title,
+        string $message,
+        string $type = 'custom',
+        ?array $data = null,
+        bool $sendEmail = false
+    ): void {
+        $users = is_array($users) ? $users : [$users];
+        $notification = new CustomNotification($title, $message, $type, $data, $sendEmail);
+
+        foreach ($users as $user) {
+            if ($user) {
+                $user->notify($notification);
+            }
+        }
+    }
     /**
      * Send task assigned notification.
      */

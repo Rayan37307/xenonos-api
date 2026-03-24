@@ -20,6 +20,8 @@ class AuthService
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => $data['role'] ?? 'worker',
+            'phone_number' => $data['phone_number'] ?? null,
+            'profile_image_link' => $data['profile_image_link'] ?? null,
         ]);
 
         // Assign default role if roles exist (skip in testing if roles table is empty)
@@ -89,6 +91,8 @@ class AuthService
         $user->update([
             'name' => $data['name'] ?? $user->name,
             'email' => $data['email'] ?? $user->email,
+            'phone_number' => $data['phone_number'] ?? $user->phone_number,
+            'profile_image_link' => $data['profile_image_link'] ?? $user->profile_image_link,
         ]);
 
         if (isset($data['password'])) {

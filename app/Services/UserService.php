@@ -65,6 +65,8 @@ class UserService
             'name' => $data['name'] ?? $user->name,
             'email' => $data['email'] ?? $user->email,
             'role' => $data['role'] ?? $user->role,
+            'phone_number' => $data['phone_number'] ?? $user->phone_number,
+            'profile_image_link' => $data['profile_image_link'] ?? $user->profile_image_link,
         ]);
 
         // Update client profile if exists

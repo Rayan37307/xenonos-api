@@ -18,12 +18,14 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            'phone_number' => $this->phone_number,
+            'profile_image_link' => $this->profile_image_link,
             'role' => $this->role,
             'avatar' => $this->avatar ?? ($this->hasMedia('avatar') ? $this->getFirstMediaUrl('avatar') : null),
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
-            
+
             // Relationships
             'client_profile' => $this->whenLoaded('clientProfile', function () {
                 return [
@@ -33,7 +35,7 @@ class UserResource extends JsonResource
                     'address' => $this->clientProfile->address,
                 ];
             }),
-            
+
             // Stats (only for workers)
             'stats' => $this->when($this->role === 'worker', function () {
                 return [
