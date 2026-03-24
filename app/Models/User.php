@@ -13,10 +13,21 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Models\Notification;
 
 class User extends Authenticatable implements HasMedia
 {
     use HasFactory, Notifiable, HasApiTokens, HasRoles, InteractsWithMedia;
+
+    /**
+     * Get the user's notifications.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany<Notification, $this>
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(Notification::class, 'notifiable');
+    }
 
     /**
      * The attributes that are mass assignable.

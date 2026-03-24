@@ -83,6 +83,26 @@ class NotificationController extends Controller
     }
 
     /**
+     * Get a specific notification's details.
+     */
+    public function show(Request $request, string $notificationId): JsonResponse
+    {
+        $notification = $request->user()
+            ->notifications()
+            ->find($notificationId);
+
+        if (!$notification) {
+            throw ValidationException::withMessages([
+                'message' => 'Notification not found',
+            ]);
+        }
+
+        return response()->json([
+            'notification' => new NotificationResource($notification),
+        ]);
+    }
+
+    /**
      * Mark notification as read.
      */
     public function markAsRead(Request $request, string $notificationId): JsonResponse
