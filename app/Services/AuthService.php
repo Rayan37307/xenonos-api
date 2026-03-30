@@ -7,9 +7,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
 
 class AuthService
 {
+    public function __construct(
+        private UserSessionService $sessionService
+    ) {}
+
     /**
      * Register a new user.
      */
@@ -50,7 +55,7 @@ class AuthService
     /**
      * Login user and create token.
      */
-    public function login(array $credentials): array
+    public function login(array $credentials, Request $request): array
     {
         if (!Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
@@ -60,6 +65,9 @@ class AuthService
 
         $user = Auth::user();
         $token = $user->createToken('auth-token')->plainTextToken;
+
+        // Create session record
+        $this->sessionService->createSession($user, $token, $request);
 
         return [
             'user' => $user,

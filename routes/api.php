@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Analytics\DashboardController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Api\File\FileController;
 use App\Http\Controllers\Api\ServiceOrder\ServiceOrderController;
+use App\Http\Controllers\Api\Session\SessionController;
 use App\Http\Controllers\Auth\LoginController;
 
 /*
@@ -39,6 +40,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::put('auth/profile', [AuthController::class, 'updateProfile']);
     Route::post('auth/avatar', [AuthController::class, 'updateAvatar']);
+    Route::post('auth/change-password', [AuthController::class, 'changePassword']);
+
+    // Session management routes
+    Route::prefix('sessions')->group(function () {
+        Route::get('/', [SessionController::class, 'index']);
+        Route::get('/current', [SessionController::class, 'current']);
+        Route::delete('/{id}', [SessionController::class, 'destroy']);
+        Route::post('/revoke-others', [SessionController::class, 'revokeOthers']);
+        Route::post('/revoke-all', [SessionController::class, 'revokeAll']);
+    });
 
     // User routes
     Route::prefix('user')->group(function () {

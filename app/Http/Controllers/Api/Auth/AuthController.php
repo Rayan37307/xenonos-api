@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -59,7 +60,7 @@ class AuthController extends Controller
         ]);
 
         try {
-            $result = $this->authService->login($validated);
+            $result = $this->authService->login($validated, $request);
 
             return response()->json([
                 'message' => 'Login successful',
@@ -131,6 +132,35 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Avatar updated successfully',
             'user' => new UserResource($user),
+        ]);
+    }
+
+    /**
+     * Change password.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        // Verify current password
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Current password is incorrect',
+                'errors' => ['current_password' => ['The current password is incorrect']],
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return response()->json([
+            'message' => 'Password changed successfully',
         ]);
     }
 }
