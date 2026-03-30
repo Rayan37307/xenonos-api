@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Analytics\DashboardController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Api\File\FileController;
+use App\Http\Controllers\Api\ServiceOrder\ServiceOrderController;
 use App\Http\Controllers\Auth\LoginController;
 
 /*
@@ -60,12 +61,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::post('invoices', [InvoiceController::class, 'store']);
             Route::put('invoices/{id}', [InvoiceController::class, 'update']);
             Route::delete('invoices/{id}', [InvoiceController::class, 'destroy']);
+
+            // Service Order routes (admin only)
+            Route::get('service-orders', [ServiceOrderController::class, 'index']);
+            Route::get('service-orders/{id}', [ServiceOrderController::class, 'show']);
+            Route::put('service-orders/{id}', [ServiceOrderController::class, 'update']);
+            Route::delete('service-orders/{id}', [ServiceOrderController::class, 'destroy']);
+            Route::post('service-orders/{id}/status', [ServiceOrderController::class, 'updateStatus']);
+            Route::post('service-orders/{id}/notes', [ServiceOrderController::class, 'addAdminNotes']);
         });
     });
 
     // Invoice routes (public to authenticated users)
     Route::get('invoices', [InvoiceController::class, 'index']);
     Route::get('invoices/{id}', [InvoiceController::class, 'show']);
+
+    // Service Order routes (public to authenticated users)
+    Route::post('service-orders', [ServiceOrderController::class, 'store']);
 
     // Project routes
     Route::prefix('projects')->group(function () {
