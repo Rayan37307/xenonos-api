@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Chat\TypingIndicatorController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Analytics\DashboardController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
+use App\Http\Controllers\Api\File\FileController;
 use App\Http\Controllers\Auth\LoginController;
 
 /*
@@ -148,4 +149,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('revenue-stats', [DashboardController::class, 'revenueStats']);
         Route::get('worker-productivity', [DashboardController::class, 'workerProductivity']);
     });
+
+    // File routes
+    Route::apiResource('files', FileController::class);
+    Route::get('files/{id}/download', [FileController::class, 'download'])->name('files.download');
 });

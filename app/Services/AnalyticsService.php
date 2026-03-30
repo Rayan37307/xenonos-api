@@ -184,7 +184,7 @@ class AnalyticsService
     /**
      * Get recent projects.
      */
-    public function getRecentProjects(int $limit = 5): \Illuminate\Database\Eloquent\Collection
+    public function getRecentProjects(int $limit = 5): array
     {
         return Project::with(['client', 'tasks'])
             ->latest()
@@ -199,13 +199,14 @@ class AnalyticsService
                     'progress' => $project->progress_percentage,
                     'task_count' => $project->tasks->count(),
                 ];
-            });
+            })
+            ->toArray();
     }
 
     /**
      * Get active tasks summary.
      */
-    public function getActiveTasks(int $limit = 10): \Illuminate\Database\Eloquent\Collection
+    public function getActiveTasks(int $limit = 10): array
     {
         return Task::whereIn('status', ['in_progress', 'review'])
             ->with(['assignedWorker', 'project'])
@@ -223,7 +224,8 @@ class AnalyticsService
                     'project' => $task->project->name,
                     'deadline' => $task->deadline,
                 ];
-            });
+            })
+            ->toArray();
     }
 
     /**
@@ -245,7 +247,7 @@ class AnalyticsService
     /**
      * Get worker productivity stats.
      */
-    public function getWorkerProductivity(): \Illuminate\Database\Eloquent\Collection
+    public function getWorkerProductivity(): array
     {
         return User::where('role', 'worker')
             ->with(['assignedTasks', 'timeTracking'])
@@ -267,6 +269,7 @@ class AnalyticsService
                 ];
             })
             ->sortByDesc('completion_rate')
-            ->values();
+            ->values()
+            ->toArray();
     }
 }

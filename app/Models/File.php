@@ -25,6 +25,9 @@ class File extends Model
         'fileable_type',
         'fileable_id',
         'uploaded_by',
+        'external_link',
+        'is_external',
+        'disk',
     ];
 
     /**
@@ -36,6 +39,7 @@ class File extends Model
     {
         return [
             'size' => 'integer',
+            'is_external' => 'boolean',
         ];
     }
 
@@ -60,13 +64,17 @@ class File extends Model
      */
     public function getFormattedSizeAttribute(): string
     {
+        if ($this->is_external) {
+            return 'External Link';
+        }
+
         $bytes = $this->size;
         $units = ['B', 'KB', 'MB', 'GB'];
-        
+
         for ($i = 0; $bytes > 1024; $i++) {
             $bytes /= 1024;
         }
-        
+
         return round($bytes, 2) . ' ' . $units[$i];
     }
 
@@ -75,6 +83,30 @@ class File extends Model
      */
     public function getUrlAttribute(): string
     {
+        if ($this->is_external && $this->external_link) {
+            return $this->external_link;
+        }
+
         return asset('storage/' . $this->path);
+    }
+
+    /**
+     * Check if file is stored externally.
+     */
+    public function isExternal(): bool
+    {
+        return $this->is_external === true;
+    }
+
+    /**
+     * Get file download URL.
+     */
+    public function getDownloadUrlAttribute(): string
+    {
+        if ($this->is_external) {
+            return $this->external_link;
+        }
+
+        return url("/api/files/{$this->id}/download");
     }
 }
