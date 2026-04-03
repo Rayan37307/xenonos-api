@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\User\AdminUserController;
+use App\Http\Controllers\Api\Admin\SignupInviteController;
+use App\Http\Controllers\Api\SignupInviteRegistrationController;
 use App\Http\Controllers\Api\Project\ProjectController;
 use App\Http\Controllers\Api\Task\TaskController;
 use App\Http\Controllers\Api\Task\TimeTrackingController;
@@ -28,6 +30,12 @@ use App\Http\Controllers\Auth\LoginController;
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+});
+
+// Public signup invite routes (for registration with invite token)
+Route::prefix('signup-invites')->group(function () {
+    Route::get('{token}', [SignupInviteRegistrationController::class, 'validateToken']);
+    Route::post('{token}/register', [SignupInviteRegistrationController::class, 'register']);
 });
 
 // Protected routes
@@ -67,6 +75,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('users/{id}', [AdminUserController::class, 'destroy']);
             Route::get('workers', [AdminUserController::class, 'workers']);
             Route::get('clients', [AdminUserController::class, 'clients']);
+
+            // Signup Invite routes (admin only)
+            Route::apiResource('signup-invites', SignupInviteController::class)->except(['show']);
+            Route::get('signup-invites/{token}', [SignupInviteController::class, 'show']);
 
             // Invoice routes (admin only)
             Route::post('invoices', [InvoiceController::class, 'store']);
