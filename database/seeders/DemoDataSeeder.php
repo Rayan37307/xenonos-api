@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Client;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\Channel;
 use App\Models\Message;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -170,6 +171,34 @@ class DemoDataSeeder extends Seeder
             'sender_id' => $workers[1]->id,
             'receiver_id' => $workers[0]->id,
             'message' => 'Hey, can you review the designs I uploaded?',
+            'is_read' => false,
+        ]);
+
+        $admin = User::where('email', 'admin@xenon.com')->first();
+        $channelAuthorId = $admin?->id ?? $client1->id;
+
+        $supportsChannel = Channel::firstOrCreate(
+            ['name' => 'Supports'],
+            [
+                'description' => 'Customer support channel',
+                'type' => 'public',
+                'created_by_id' => $channelAuthorId,
+            ]
+        );
+
+        $feedbackChannel = Channel::firstOrCreate(
+            ['name' => 'feedback'],
+            [
+                'description' => 'Product feedback and ideas',
+                'type' => 'public',
+                'created_by_id' => $channelAuthorId,
+            ]
+        );
+
+        Message::create([
+            'channel_id' => $feedbackChannel->id,
+            'sender_id' => $client2->id,
+            'message' => 'I\'ve just uploaded the updated design assets for the dashboard.',
             'is_read' => false,
         ]);
 

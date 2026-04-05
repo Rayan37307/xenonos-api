@@ -1,0 +1,193 @@
+# =============================================================================
+# XenonOS Laravel API - Production Deployment Workflow
+# =============================================================================
+# This workflow deploys to production when a release is published.
+# Requires manual approval before deployment.
+# =============================================================================
+
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      ref:
+        description: 'Git ref to deploy (branch or tag)'
+        required: true
+        default: 'main'
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  # ==========================================================================
+  # PRE-DEPLOYMENT CHECKS
+  # ==========================================================================
+  pre-deploy:
+    name: Pre-deployment Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, sqlite3, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run tests
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          php artisan migrate --force
+          vendor/bin/pest --no-coverage
+        env:
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+
+      - name: Set version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=manual-${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+  # ==========================================================================
+  # DEPLOYMENT (Manual Approval Required)
+  # ==========================================================================
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    needs: pre-deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: ${{ vars.APP_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          echo "Deploying to $DEPLOY_HOST..."
+
+          # Run deployment script on remote server
+          ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
+            set -e
+
+            APP_DIR="${DEPLOY_PATH}"
+            cd "$APP_DIR"
+
+            echo "━━━ Putting application in maintenance mode ━━━"
+            php artisan down --refresh=15 --render="errors::maintenance" || true
+
+            echo "━━━ Pulling latest code ━━━"
+            git fetch origin
+            git checkout ${{ github.event.inputs.ref || 'main' }}
+            git pull origin ${{ github.event.inputs.ref || 'main' }}
+
+            echo "━━━ Installing dependencies ━━━"
+            composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction
+
+            echo "━━━ Running migrations ━━━"
+            php artisan migrate --force --no-interaction
+
+            echo "━━━ Building assets ━━━"
+            npm run build
+
+            echo "━━━ Optimizing Laravel ━━━"
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+
+            echo "━━━ Setting permissions ━━━"
+            sudo chown -R www-data:www-data "$APP_DIR"
+            sudo find "$APP_DIR" -type d -exec chmod 755 {} \;
+            sudo find "$APP_DIR" -type f -exec chmod 644 {} \;
+            sudo chmod -R 775 "$APP_DIR/storage"
+            sudo chmod -R 775 "$APP_DIR/bootstrap/cache"
+
+            echo "━━━ Restarting queue workers ━━━"
+            sudo supervisorctl restart xenonos-worker:* || true
+
+            echo "━━━ Restarting Reverb ━━━"
+            sudo supervisorctl restart xenonos-reverb || true
+
+            echo "━━━ Bringing application back online ━━━"
+            php artisan up
+
+            echo "━━━ Deployment complete ━━━"
+          EOF
+
+      - name: Health check
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          echo "Waiting 10 seconds for services to stabilize..."
+          sleep 10
+
+          echo "Running health check..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.APP_URL }}/health" || echo "000")
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "Health check passed (HTTP $HTTP_CODE)"
+          else
+            echo "Health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "Version: ${{ needs.pre-deploy.outputs.version }}"
+          echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "URL: ${{ vars.APP_URL }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Version: ${{ needs.pre-deploy.outputs.version }}"
+          echo "Check the logs for details."

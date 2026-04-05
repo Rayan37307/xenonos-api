@@ -17,6 +17,7 @@ class MessageResource extends JsonResource
         return [
             'id' => $this->id,
             'message' => $this->message,
+            'content_hash' => $this->content_hash,
             'is_read' => $this->is_read,
             'read_at' => $this->read_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

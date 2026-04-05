@@ -25,9 +25,27 @@ class Message extends Model implements HasMedia
         'channel_id',
         'conversation_id',
         'message',
+        'content_hash',
         'is_read',
         'read_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Message $message) {
+            if ($message->isDirty('message') || ! $message->exists) {
+                $message->content_hash = self::hashContent((string) $message->message);
+            }
+        });
+    }
+
+    /**
+     * SHA-256 hex digest of UTF-8 message body (integrity / dedupe reference).
+     */
+    public static function hashContent(string $plainText): string
+    {
+        return hash('sha256', $plainText);
+    }
 
     /**
      * The attributes that should be cast.

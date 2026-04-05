@@ -22,6 +22,7 @@ class MessageResource extends JsonResource
                 'role' => $this->sender->role,
             ],
             'content' => $this->message,
+            'content_hash' => $this->content_hash,
             'attachments' => $this->getMedia('attachments')->map(function ($media) {
                 return [
                     'id' => $media->id,

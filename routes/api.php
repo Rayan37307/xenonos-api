@@ -114,10 +114,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{id}/statistics', [ProjectController::class, 'statistics']);
     });
 
-    // Task routes
+    // Task routes (static paths like /my must be registered before /{id})
     Route::prefix('tasks')->group(function () {
         Route::get('/', [TaskController::class, 'index']);
         Route::post('/', [TaskController::class, 'store']);
+        Route::get('/my', [TaskController::class, 'myTasks']);
         Route::get('/{id}', [TaskController::class, 'show']);
         Route::put('/{id}', [TaskController::class, 'update']);
         Route::delete('/{id}', [TaskController::class, 'destroy']);
@@ -126,7 +127,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{id}/start-timer', [TimeTrackingController::class, 'start']);
         Route::post('/{id}/stop-timer', [TimeTrackingController::class, 'stop']);
         Route::get('/{id}/time-logs', [TimeTrackingController::class, 'logs']);
-        Route::get('/my', [TaskController::class, 'myTasks']);
     });
 
     // Task Kanban routes

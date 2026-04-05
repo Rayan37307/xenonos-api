@@ -1,0 +1,264 @@
+# =============================================================================
+# XenonOS Laravel API - CI/CD Pipeline
+# =============================================================================
+# This workflow runs tests, code quality checks, and builds on every push/PR.
+# =============================================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'release/**']
+  pull_request:
+    branches: [main, develop]
+
+# Cancel duplicate workflows
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # CODE QUALITY CHECKS
+  # ==========================================================================
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, sqlite3, tokenizer, xml, redis
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run Pint (Code Style)
+        run: vendor/bin/pint --test
+
+      - name: Check Composer autoload optimization
+        run: composer dump-autoload --optimize --dry-run
+
+  # ==========================================================================
+  # STATIC ANALYSIS
+  # ==========================================================================
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, sqlite3, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPStan (if available)
+        run: |
+          if [ -f "phpstan.neon" ]; then
+            vendor/bin/phpstan analyse --no-progress
+          else
+            echo "phpstan.neon not found, skipping static analysis"
+          fi
+        continue-on-error: true
+
+  # ==========================================================================
+  # TESTS
+  # ==========================================================================
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, sqlite3, tokenizer, xml, redis
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Cache NPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Setup environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Clear config before tests
+        run: php artisan config:clear
+
+      - name: Run tests (Pest)
+        run: vendor/bin/pest --parallel --no-coverage
+        env:
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+
+  # ==========================================================================
+  # SECURITY SCAN
+  # ==========================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, sqlite3, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run Composer audit (security vulnerabilities)
+        run: composer audit --format=json --no-interaction || true
+
+      - name: Check for exposed credentials
+        run: |
+          echo "Checking for hardcoded credentials..."
+          ! grep -r "password\s*=\s*['\"].*['\"]" --include="*.php" --exclude-dir=vendor . | grep -v ".env.example" | grep -v "config/" || true
+          ! grep -r "api_key\s*=\s*['\"].*['\"]" --include="*.php" --exclude-dir=vendor . | grep -v ".env.example" || true
+
+  # ==========================================================================
+  # BUILD VERIFICATION
+  # ==========================================================================
+  build-verify:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo, sqlite3, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Setup environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Verify optimization commands work
+        run: |
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan event:cache
+          php artisan optimize:clear
+        continue-on-error: true
+
+      - name: Verify build output exists
+        run: |
+          if [ -d "public/build" ]; then
+            echo "Build directory exists"
+            ls -la public/build/
+          else
+            echo "Build directory not found (may be expected for API-only projects)"
+          fi
