@@ -19,11 +19,19 @@ class TaskController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['project_id', 'status', 'assigned_to', 'priority']);
-        $tasks = $this->taskService->getAll($filters);
+        $filters = $request->only(['project_id', 'status', 'assigned_to', 'priority', 'search', 'deadline', 'sort_field', 'sort_direction']);
+        $perPage = (int) $request->query('per_page', 15);
+
+        $paginator = $this->taskService->getAll($filters, $perPage);
 
         return response()->json([
-            'tasks' => TaskResource::collection($tasks),
+            'tasks' => TaskResource::collection($paginator),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
         ]);
     }
 
@@ -161,10 +169,18 @@ class TaskController extends Controller
     public function myTasks(Request $request): JsonResponse
     {
         $status = $request->query('status');
-        $tasks = $this->taskService->getUserTasks($request->user()->id, $status);
+        $perPage = (int) $request->query('per_page', 15);
+        
+        $paginator = $this->taskService->getUserTasks($request->user()->id, $status, $perPage);
 
         return response()->json([
-            'tasks' => TaskResource::collection($tasks),
+            'tasks' => TaskResource::collection($paginator),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
         ]);
     }
 
@@ -182,6 +198,66 @@ class TaskController extends Controller
 
         return response()->json([
             'message' => 'Tasks reordered successfully',
+        ]);
+    }
+
+    /**
+     * Get tasks for calendar view.
+     */
+    public function calendar(Request $request): JsonResponse
+    {
+        $projectId = $request->query('project_id');
+        $userId = $request->query('user_id');
+        $start = $request->query('start');
+        $end = $request->query('end');
+
+        $tasks = $this->taskService->getCalendarTasks($projectId, $userId, $start, $end);
+
+        return response()->json([
+            'tasks' => TaskResource::collection($tasks),
+        ]);
+    }
+
+    /**
+     * Get task analytics.
+     */
+    public function analytics(Request $request): JsonResponse
+    {
+        $projectId = $request->query('project_id');
+        $userId = $request->query('user_id');
+        $period = $request->query('period', 'all');
+
+        $analytics = $this->taskService->getAnalytics($projectId, $userId, $period);
+
+        return response()->json($analytics);
+    }
+
+    /**
+     * Get upcoming tasks.
+     */
+    public function upcoming(Request $request): JsonResponse
+    {
+        $userId = $request->query('user_id');
+        $days = (int) $request->query('days', 7);
+
+        $tasks = $this->taskService->getUpcomingTasks($userId, $days);
+
+        return response()->json([
+            'tasks' => TaskResource::collection($tasks),
+        ]);
+    }
+
+    /**
+     * Get overdue tasks.
+     */
+    public function overdue(Request $request): JsonResponse
+    {
+        $userId = $request->query('user_id');
+
+        $tasks = $this->taskService->getOverdueTasks($userId);
+
+        return response()->json([
+            'tasks' => TaskResource::collection($tasks),
         ]);
     }
 }

@@ -20,6 +20,10 @@ use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Api\File\FileController;
 use App\Http\Controllers\Api\ServiceOrder\ServiceOrderController;
 use App\Http\Controllers\Api\Session\SessionController;
+use App\Http\Controllers\Api\Client\ClientController;
+use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\NoteController;
+use App\Http\Controllers\Api\Chat\ChatModerationController;
 use App\Http\Controllers\Auth\LoginController;
 
 /*
@@ -77,7 +81,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::put('users/{id}', [AdminUserController::class, 'update']);
             Route::delete('users/{id}', [AdminUserController::class, 'destroy']);
             Route::get('workers', [AdminUserController::class, 'workers']);
-            Route::get('clients', [AdminUserController::class, 'clients']);
+            Route::get('clients', [ClientController::class, 'index']);
+            Route::get('clients/{client}', [ClientController::class, 'show']);
+            Route::post('clients', [ClientController::class, 'store']);
+            Route::put('clients/{client}', [ClientController::class, 'update']);
+            Route::delete('clients/{client}', [ClientController::class, 'destroy']);
+            Route::get('clients/{client}/stats', [ClientController::class, 'stats']);
 
             // Signup Invite routes (admin only)
             Route::apiResource('signup-invites', SignupInviteController::class)->except(['show']);
@@ -101,6 +110,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::get('system-logs/stats', [SystemLogController::class, 'stats']);
             Route::get('system-logs/{id}', [SystemLogController::class, 'show']);
             Route::delete('system-logs/{id}', [SystemLogController::class, 'destroy']);
+
+            // Chat Moderation Admin routes
+            Route::get('flagged-messages', [ChatModerationController::class, 'getFlaggedMessages']);
+            Route::post('flags/{flagId}/resolve', [ChatModerationController::class, 'resolveFlag']);
+            Route::post('ban', [ChatModerationController::class, 'banUser']);
+            Route::delete('ban/{userId}', [ChatModerationController::class, 'unbanUser']);
+            Route::get('banned-users', [ChatModerationController::class, 'getBannedUsers']);
+            Route::get('users/{userId}/can-send-message', [ChatModerationController::class, 'checkCanSendMessage']);
         });
     });
 
@@ -115,12 +132,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('projects')->group(function () {
         Route::get('/', [ProjectController::class, 'index']);
         Route::post('/', [ProjectController::class, 'store']);
+        Route::get('/my', [ProjectController::class, 'myProjects']);
         Route::get('/{id}', [ProjectController::class, 'show']);
         Route::put('/{id}', [ProjectController::class, 'update']);
         Route::delete('/{id}', [ProjectController::class, 'destroy']);
         Route::post('/{id}/workers', [ProjectController::class, 'assignWorkers']);
         Route::delete('/{projectId}/workers/{workerId}', [ProjectController::class, 'removeWorker']);
         Route::get('/{id}/statistics', [ProjectController::class, 'statistics']);
+        
+        // Workspace routes
+        Route::get('/{id}/workspace', [ProjectController::class, 'workspace']);
+        Route::get('/{id}/details', [ProjectController::class, 'getDetails']);
+        Route::put('/{id}/details', [ProjectController::class, 'updateDetails']);
+        Route::get('/{id}/timeline', [ProjectController::class, 'timeline']);
+        Route::get('/{id}/activity', [ProjectController::class, 'activity']);
+        
+        // Project events
+        Route::post('/{id}/events', [ProjectController::class, 'createEvent']);
+        Route::put('/events/{eventId}', [ProjectController::class, 'updateEvent']);
+        Route::delete('/events/{eventId}', [ProjectController::class, 'deleteEvent']);
+        
+        // File linking
+        Route::post('/{id}/link-file', [ProjectController::class, 'linkFile']);
+        Route::delete('/{id}/files/{fileId}', [ProjectController::class, 'unlinkFile']);
     });
 
     // Task routes (static paths like /my must be registered before /{id})
@@ -128,6 +162,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [TaskController::class, 'index']);
         Route::post('/', [TaskController::class, 'store']);
         Route::get('/my', [TaskController::class, 'myTasks']);
+        Route::get('/calendar', [TaskController::class, 'calendar']);
+        Route::get('/analytics', [TaskController::class, 'analytics']);
+        Route::get('/upcoming', [TaskController::class, 'upcoming']);
+        Route::get('/overdue', [TaskController::class, 'overdue']);
         Route::get('/{id}', [TaskController::class, 'show']);
         Route::put('/{id}', [TaskController::class, 'update']);
         Route::delete('/{id}', [TaskController::class, 'destroy']);
@@ -166,6 +204,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('messages/{id}/reactions/{emoji}', [App\Http\Controllers\Api\Chat\MessageController::class, 'removeReaction']);
         Route::post('messages/{id}/read', [App\Http\Controllers\Api\Chat\MessageController::class, 'markAsRead']);
 
+        // Chat Moderation routes
+        Route::post('messages/{id}/flag', [ChatModerationController::class, 'flagMessage']);
+        Route::post('messages/{id}/delete', [ChatModerationController::class, 'deleteMessage']);
+        Route::post('messages/{id}/restore', [ChatModerationController::class, 'restoreMessage']);
+        Route::get('messages/{id}/audit-logs', [ChatModerationController::class, 'getMessageAuditLogs']);
+        Route::post('mute', [ChatModerationController::class, 'muteUser']);
+        Route::delete('mute/{mutedUserId}', [ChatModerationController::class, 'unmuteUser']);
+        Route::get('muted-users', [ChatModerationController::class, 'getMutedUsers']);
+
         Route::get('users/online-status', [App\Http\Controllers\Api\Chat\ChatController::class, 'onlineStatus']);
         Route::post('upload', [App\Http\Controllers\Api\Chat\ChatController::class, 'upload']);
         Route::get('search', [App\Http\Controllers\Api\Chat\ChatController::class, 'search']);
@@ -197,4 +244,28 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // File routes
     Route::apiResource('files', FileController::class);
     Route::get('files/{id}/download', [FileController::class, 'download'])->name('files.download');
+
+    // Announcement routes
+    Route::prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index']);
+        Route::get('/published', [AnnouncementController::class, 'published']);
+        Route::get('/{id}', [AnnouncementController::class, 'show']);
+        Route::post('/', [AnnouncementController::class, 'store']);
+        Route::put('/{id}', [AnnouncementController::class, 'update']);
+        Route::delete('/{id}', [AnnouncementController::class, 'destroy']);
+        Route::post('/{id}/publish', [AnnouncementController::class, 'publish']);
+        Route::post('/{id}/unpublish', [AnnouncementController::class, 'unpublish']);
+    });
+
+    // Note routes
+    Route::prefix('notes')->group(function () {
+        Route::get('/', [NoteController::class, 'index']);
+        Route::get('/my', [NoteController::class, 'myNotes']);
+        Route::get('/entity', [NoteController::class, 'forEntity']);
+        Route::get('/{id}', [NoteController::class, 'show']);
+        Route::post('/', [NoteController::class, 'store']);
+        Route::put('/{id}', [NoteController::class, 'update']);
+        Route::delete('/{id}', [NoteController::class, 'destroy']);
+        Route::post('/{id}/toggle-pin', [NoteController::class, 'togglePin']);
+    });
 });

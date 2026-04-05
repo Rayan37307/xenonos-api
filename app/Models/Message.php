@@ -28,6 +28,10 @@ class Message extends Model implements HasMedia
         'content_hash',
         'is_read',
         'read_at',
+        'is_deleted',
+        'delete_reason',
+        'deleted_by',
+        'deleted_at',
     ];
 
     protected static function booted(): void
@@ -57,6 +61,8 @@ class Message extends Model implements HasMedia
         return [
             'is_read' => 'boolean',
             'read_at' => 'datetime',
+            'is_deleted' => 'boolean',
+            'deleted_at' => 'datetime',
         ];
     }
 
@@ -106,6 +112,38 @@ class Message extends Model implements HasMedia
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class);
+    }
+
+    /**
+     * Get the user who deleted this message.
+     */
+    public function deletedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    /**
+     * Get flags for this message.
+     */
+    public function flags(): HasMany
+    {
+        return $this->hasMany(MessageFlag::class);
+    }
+
+    /**
+     * Scope a query to only include non-deleted messages.
+     */
+    public function scopeNotDeleted($query)
+    {
+        return $query->where('is_deleted', false);
+    }
+
+    /**
+     * Scope a query to only include deleted messages.
+     */
+    public function scopeDeleted($query)
+    {
+        return $query->where('is_deleted', true);
     }
 
     /**

@@ -8,13 +8,14 @@ use App\Models\User;
 use App\Events\TaskAssigned;
 use App\Events\TaskStatusUpdated;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class TaskService
 {
     /**
      * Get all tasks with optional filtering.
      */
-    public function getAll(array $filters = []): Collection
+    public function getAll(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = Task::query();
 
@@ -34,7 +35,33 @@ class TaskService
             $query->where('priority', $filters['priority']);
         }
 
-        return $query->with(['project', 'assignedWorker', 'creator', 'files'])->latest()->get();
+        if (isset($filters['search'])) {
+            $query->where('title', 'like', '%' . $filters['search'] . '%');
+        }
+
+        if (isset($filters['deadline'])) {
+            if ($filters['deadline'] === 'overdue') {
+                $query->where('deadline', '<', now())->whereNotIn('status', ['completed']);
+            } elseif ($filters['deadline'] === 'today') {
+                $query->whereDate('deadline', today());
+            } elseif ($filters['deadline'] === 'this_week') {
+                $query->whereBetween('deadline', [now(), now()->endOfWeek()]);
+            } elseif ($filters['deadline'] === 'this_month') {
+                $query->whereBetween('deadline', [now(), now()->endOfMonth()]);
+            }
+        }
+
+        $sortField = $filters['sort_field'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+
+        $allowedSortFields = ['title', 'status', 'priority', 'deadline', 'progress', 'created_at'];
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'created_at';
+        }
+
+        return $query->with(['project', 'assignedWorker', 'creator', 'files'])
+            ->orderBy($sortField, $sortDirection)
+            ->paginate($perPage);
     }
 
     /**
@@ -171,7 +198,7 @@ class TaskService
     /**
      * Get tasks assigned to a user.
      */
-    public function getUserTasks(int $userId, ?string $status = null): Collection
+    public function getUserTasks(int $userId, ?string $status = null, int $perPage = 15): LengthAwarePaginator
     {
         $query = Task::where('assigned_to', $userId)
             ->with(['project', 'files']);
@@ -180,7 +207,7 @@ class TaskService
             $query->where('status', $status);
         }
 
-        return $query->latest()->get();
+        return $query->latest()->paginate($perPage);
     }
 
     /**
@@ -209,5 +236,164 @@ class TaskService
             'overdue' => $tasks->where('deadline', '<', now())->whereNotIn('status', ['completed'])->count(),
             'avg_progress' => $tasks->isNotEmpty() ? round($tasks->avg('progress'), 2) : 0,
         ];
+    }
+
+    /**
+     * Get tasks for calendar view (date-based queries).
+     */
+    public function getCalendarTasks(?int $projectId = null, ?int $userId = null, ?string $start = null, ?string $end = null): Collection
+    {
+        $query = Task::query()
+            ->with(['project', 'assignedWorker'])
+            ->whereNotNull('deadline');
+
+        if ($projectId) {
+            $query->where('project_id', $projectId);
+        }
+
+        if ($userId) {
+            $query->where('assigned_to', $userId);
+        }
+
+        if ($start) {
+            $query->whereDate('deadline', '>=', $start);
+        }
+
+        if ($end) {
+            $query->whereDate('deadline', '<=', $end);
+        }
+
+        return $query->orderBy('deadline')->get();
+    }
+
+    /**
+     * Get task analytics (completion rate, delays, etc).
+     */
+    public function getAnalytics(?int $projectId = null, ?int $userId = null, ?string $period = 'all'): array
+    {
+        $query = Task::query();
+
+        if ($projectId) {
+            $query->where('project_id', $projectId);
+        }
+
+        if ($userId) {
+            $query->where('assigned_to', $userId);
+        }
+
+        $tasks = $query->get();
+
+        $total = $tasks->count();
+        $completed = $tasks->where('status', 'completed')->count();
+        $completionRate = $total > 0 ? round(($completed / $total) * 100, 2) : 0;
+
+        $overdueTasks = $tasks->where('deadline', '<', now())->whereNotIn('status', ['completed']);
+        $overdueCount = $overdueTasks->count();
+        
+        $completedTasks = $tasks->where('status', 'completed');
+        $onTimeCount = $completedTasks->filter(function ($task) {
+            return $task->deadline && $task->completed_at && $task->completed_at->lte($task->deadline);
+        })->count();
+        
+        $delayedCount = $completedTasks->count() - $onTimeCount;
+        $onTimeRate = $completedTasks->count() > 0 ? round(($onTimeCount / $completedTasks->count()) * 100, 2) : 0;
+
+        $avgCompletionTime = $this->getAverageCompletionTime($query);
+        $avgProgress = $tasks->isNotEmpty() ? round($tasks->avg('progress'), 2) : 0;
+
+        return [
+            'total_tasks' => $total,
+            'completed_tasks' => $completed,
+            'pending_tasks' => $tasks->whereIn('status', ['todo', 'in_progress'])->count(),
+            'completion_rate' => $completionRate,
+            'overdue_count' => $overdueCount,
+            'on_time_count' => $onTimeCount,
+            'delayed_count' => $delayedCount,
+            'on_time_rate' => $onTimeRate,
+            'avg_completion_time_hours' => $avgCompletionTime,
+            'avg_progress' => $avgProgress,
+            'by_status' => [
+                'todo' => $tasks->where('status', 'todo')->count(),
+                'in_progress' => $tasks->where('status', 'in_progress')->count(),
+                'review' => $tasks->where('status', 'review')->count(),
+                'completed' => $completed,
+            ],
+            'by_priority' => [
+                'low' => $tasks->where('priority', 'low')->count(),
+                'medium' => $tasks->where('priority', 'medium')->count(),
+                'high' => $tasks->where('priority', 'high')->count(),
+                'urgent' => $tasks->where('priority', 'urgent')->count(),
+            ],
+        ];
+    }
+
+    /**
+     * Calculate average completion time in hours.
+     */
+    private function getAverageCompletionTime($query): float
+    {
+        $completedTasks = $query->clone()->where('status', 'completed')->whereNotNull('deadline')->get();
+        
+        if ($completedTasks->isEmpty()) {
+            return 0;
+        }
+
+        $totalHours = $completedTasks->sum(function ($task) {
+            if ($task->completed_at && $task->deadline) {
+                return $task->completed_at->diffInHours($task->created_at);
+            }
+            return now()->diffInHours($task->created_at);
+        });
+
+        return round($totalHours / $completedTasks->count(), 2);
+    }
+
+    /**
+     * Get upcoming tasks (due soon).
+     */
+    public function getUpcomingTasks(?int $userId = null, int $days = 7): Collection
+    {
+        $query = Task::query()
+            ->with(['project', 'assignedWorker'])
+            ->whereNotNull('deadline')
+            ->whereNotIn('status', ['completed'])
+            ->whereDate('deadline', '<=', now()->addDays($days));
+
+        if ($userId) {
+            $query->where('assigned_to', $userId);
+        }
+
+        return $query->orderBy('deadline')->get();
+    }
+
+    /**
+     * Get overdue tasks.
+     */
+    public function getOverdueTasks(?int $userId = null): Collection
+    {
+        $query = Task::query()
+            ->with(['project', 'assignedWorker'])
+            ->where('deadline', '<', now())
+            ->whereNotIn('status', ['completed']);
+
+        if ($userId) {
+            $query->where('assigned_to', $userId);
+        }
+
+        return $query->orderBy('deadline')->get();
+    }
+
+    /**
+     * Get tasks by user with date range.
+     */
+    public function getUserTasksByDateRange(int $userId, string $start, string $end): Collection
+    {
+        return Task::where('assigned_to', $userId)
+            ->whereNotNull('deadline')
+            ->whereDate('deadline', '>=', $start)
+            ->whereDate('deadline', '<=', $end)
+            ->with(['project'])
+            ->orderBy('deadline')
+            ->get();
     }
 }

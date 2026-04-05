@@ -93,6 +93,14 @@ class Project extends Model
     }
 
     /**
+     * Get project details.
+     */
+    public function details(): HasMany
+    {
+        return $this->hasMany(ProjectDetails::class);
+    }
+
+    /**
      * Scope a query to only include active projects.
      */
     public function scopeActive($query)

@@ -23,6 +23,15 @@ class ClientFactory extends Factory
             'company_name' => fake()->company(),
             'phone' => fake()->phoneNumber(),
             'address' => fake()->address(),
+            'status' => 'active',
+            'notes' => null,
         ];
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'inactive',
+        ]);
     }
 }
