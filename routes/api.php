@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\User\UserActivityController;
 use App\Http\Controllers\Api\User\AdminUserController;
+use App\Http\Controllers\Api\Admin\SystemLogController;
 use App\Http\Controllers\Api\Admin\SignupInviteController;
 use App\Http\Controllers\Api\SignupInviteRegistrationController;
 use App\Http\Controllers\Api\Project\ProjectController;
@@ -94,6 +95,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::delete('service-orders/{id}', [ServiceOrderController::class, 'destroy']);
             Route::post('service-orders/{id}/status', [ServiceOrderController::class, 'updateStatus']);
             Route::post('service-orders/{id}/notes', [ServiceOrderController::class, 'addAdminNotes']);
+
+            // System Log routes (admin only)
+            Route::get('system-logs', [SystemLogController::class, 'index']);
+            Route::get('system-logs/stats', [SystemLogController::class, 'stats']);
+            Route::get('system-logs/{id}', [SystemLogController::class, 'show']);
+            Route::delete('system-logs/{id}', [SystemLogController::class, 'destroy']);
         });
     });
 
