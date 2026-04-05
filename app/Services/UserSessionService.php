@@ -102,6 +102,15 @@ class UserSessionService
             return false;
         }
 
+        activity()
+            ->causedBy($user)
+            ->useLog('session')
+            ->withProperties([
+                'session_id' => $session->id,
+                'device_name' => $session->device_name,
+            ])
+            ->log('session_revoked');
+
         // Revoke the Sanctum token
         PersonalAccessToken::where('id', $session->token_id)->delete();
 
@@ -132,6 +141,14 @@ class UserSessionService
 
         $deleted = $query->delete();
 
+        if ($deleted > 0) {
+            activity()
+                ->causedBy($user)
+                ->useLog('session')
+                ->withProperties(['revoked_count' => $deleted])
+                ->log('other_sessions_revoked');
+        }
+
         // Mark current session as current again
         if ($currentSession) {
             $currentSession->update(['is_current' => true]);
@@ -145,6 +162,14 @@ class UserSessionService
      */
     public function deleteAllSessions(User $user): int
     {
+        $count = UserSession::where('user_id', $user->id)->count();
+
+        activity()
+            ->causedBy($user)
+            ->useLog('session')
+            ->withProperties(['revoked_count' => $count])
+            ->log('all_sessions_revoked');
+
         // Revoke all Sanctum tokens
         PersonalAccessToken::where('tokenable_id', $user->id)->delete();
 

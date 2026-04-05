@@ -107,6 +107,15 @@ class AuthService
         // Create session record
         $this->sessionService->createSession($user, $token, $request);
 
+        activity()
+            ->causedBy($user)
+            ->useLog('auth')
+            ->withProperties([
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ])
+            ->log('login');
+
         return [
             'user' => $user,
             'token' => $token,
@@ -118,6 +127,11 @@ class AuthService
      */
     public function logout(User $user): void
     {
+        activity()
+            ->causedBy($user)
+            ->useLog('auth')
+            ->log('logout');
+
         $user->tokens()->delete();
     }
 

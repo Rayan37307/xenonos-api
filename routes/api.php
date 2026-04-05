@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\User\UserController;
+use App\Http\Controllers\Api\User\UserActivityController;
 use App\Http\Controllers\Api\User\AdminUserController;
 use App\Http\Controllers\Api\Admin\SignupInviteController;
 use App\Http\Controllers\Api\SignupInviteRegistrationController;
@@ -64,6 +65,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('profile', [UserController::class, 'profile']);
         Route::put('profile', [UserController::class, 'updateProfile']);
         Route::get('activity-summary', [UserController::class, 'activitySummary']);
+        Route::get('activity', [UserActivityController::class, 'index']);
     });
 
     // Admin-only routes

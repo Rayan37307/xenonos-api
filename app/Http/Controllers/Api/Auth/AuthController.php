@@ -159,6 +159,11 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
+        activity()
+            ->causedBy($user)
+            ->useLog('auth')
+            ->log('password_changed');
+
         return response()->json([
             'message' => 'Password changed successfully',
         ]);

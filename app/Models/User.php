@@ -14,10 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Models\Notification;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class User extends Authenticatable implements HasMedia
 {
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, InteractsWithMedia;
+    use HasFactory, Notifiable, HasApiTokens, HasRoles, InteractsWithMedia, LogsActivity;
 
     /**
      * Get the user's notifications.
@@ -200,5 +203,21 @@ class User extends Authenticatable implements HasMedia
     public function isWorker(): bool
     {
         return $this->role === 'worker';
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('user')
+            ->logOnly(['name', 'email', 'phone_number', 'role', 'avatar', 'profile_image_link'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    public function tapActivity(Activity $activity, string $eventName): void
+    {
+        if ($eventName === 'created' && $activity->causer_id === null) {
+            $activity->causer()->associate($this);
+        }
     }
 }

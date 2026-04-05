@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class TaskTimeTracking extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -70,5 +72,14 @@ class TaskTimeTracking extends Model
     public function getIsActiveAttribute(): bool
     {
         return $this->ended_at === null;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('time_tracking')
+            ->logOnly(['task_id', 'user_id', 'started_at', 'ended_at', 'duration_seconds'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 }
