@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\Chat\ChatModerationController;
+use App\Http\Controllers\Api\Alert\AlertController;
+use App\Http\Controllers\Api\Settings\SettingsController;
 use App\Http\Controllers\Auth\LoginController;
 
 /*
@@ -267,5 +269,62 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/{id}', [NoteController::class, 'update']);
         Route::delete('/{id}', [NoteController::class, 'destroy']);
         Route::post('/{id}/toggle-pin', [NoteController::class, 'togglePin']);
+    });
+
+    // Alert routes
+    Route::prefix('alerts')->group(function () {
+        Route::get('/', [AlertController::class, 'index']);
+        Route::get('/active', [AlertController::class, 'active']);
+        Route::get('/unread-count', [AlertController::class, 'unreadCount']);
+        Route::get('/{id}', [AlertController::class, 'show']);
+        Route::post('/{id}/dismiss', [AlertController::class, 'dismiss']);
+        Route::post('/{id}/resolve', [AlertController::class, 'resolve']);
+    });
+
+    // Settings routes
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [SettingsController::class, 'index']);
+        Route::get('/account', [SettingsController::class, 'accountSettings']);
+        Route::put('/account', [SettingsController::class, 'updateAccountSettings']);
+        Route::get('/security', [SettingsController::class, 'securitySettings']);
+        Route::get('/{key}', [SettingsController::class, 'show']);
+        Route::put('/{key}', [SettingsController::class, 'update']);
+        Route::delete('/{key}', [SettingsController::class, 'delete']);
+        
+        // API Keys
+        Route::get('/api-keys', [SettingsController::class, 'apiKeys']);
+        Route::post('/api-keys', [SettingsController::class, 'createApiKey']);
+        Route::delete('/api-keys/{id}', [SettingsController::class, 'revokeApiKey']);
+    });
+
+    // Reporting & Analytics routes
+    Route::prefix('reports')->group(function () {
+        Route::get('/executive-summary', [DashboardController::class, 'executiveSummary']);
+        Route::get('/project-summary', [DashboardController::class, 'projectSummary']);
+        Route::get('/task-summary', [DashboardController::class, 'taskSummary']);
+        Route::get('/financial-summary', [DashboardController::class, 'financialSummary']);
+        Route::get('/team-performance', [DashboardController::class, 'teamPerformance']);
+        Route::get('/client-summary', [DashboardController::class, 'clientSummary']);
+        Route::get('/time-series', [DashboardController::class, 'timeSeries']);
+    });
+
+    // File sharing routes
+    Route::prefix('files')->group(function () {
+        Route::post('/{id}/share', [FileController::class, 'share']);
+        Route::delete('/{id}/share/{userId}', [FileController::class, 'unshare']);
+        Route::get('/shared-with-me', [FileController::class, 'sharedWithMe']);
+        Route::get('/shared-by-me', [FileController::class, 'sharedByMe']);
+        Route::get('/{id}/activity', [FileController::class, 'activity']);
+    });
+
+    // Billing routes
+    Route::prefix('billing')->group(function () {
+        Route::get('/invoices', [InvoiceController::class, 'clientInvoices']);
+        Route::post('/invoices/{id}/pay', [InvoiceController::class, 'markAsPaid']);
+        Route::get('/transactions', [InvoiceController::class, 'transactions']);
+        Route::get('/subscriptions', [InvoiceController::class, 'subscriptions']);
+        Route::post('/subscriptions', [InvoiceController::class, 'createSubscription']);
+        Route::put('/subscriptions/{id}', [InvoiceController::class, 'updateSubscription']);
+        Route::delete('/subscriptions/{id}', [InvoiceController::class, 'cancelSubscription']);
     });
 });

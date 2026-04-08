@@ -61,10 +61,22 @@ class AuthController extends Controller
 
         try {
             $result = $this->authService->login($validated, $request);
+            $user = $result['user'];
+
+            // Security: Enforce admin-only access to the admin panel
+            // Non-admin users are rejected with a 403 Forbidden response
+            if (!$user->isAdmin()) {
+                // Revoke the token we just created to prevent reuse
+                $user->tokens()->latest()->first()?->delete();
+
+                return response()->json([
+                    'message' => 'Access denied. Admin privileges required.',
+                ], 403);
+            }
 
             return response()->json([
                 'message' => 'Login successful',
-                'user' => new UserResource($result['user']),
+                'user' => new UserResource($user),
                 'token' => $result['token'],
             ]);
         } catch (ValidationException $e) {

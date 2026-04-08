@@ -7,31 +7,30 @@ use App\Http\Resources\FileResource;
 use App\Models\File;
 use App\Models\Project;
 use App\Models\Task;
+use App\Services\FileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class FileController extends Controller
 {
-    /**
-     * Display a listing of files.
-     */
+    public function __construct(private FileService $fileService)
+    {
+    }
+
     public function index(Request $request)
     {
         $query = File::query();
 
-        // Filter by fileable type and id
         if ($request->has('fileable_type') && $request->has('fileable_id')) {
             $query->where('fileable_type', $request->fileable_type)
                   ->where('fileable_id', $request->fileable_id);
         }
 
-        // Filter by uploaded_by
         if ($request->has('uploaded_by')) {
             $query->where('uploaded_by', $request->uploaded_by);
         }
 
-        // Only admin can see all files, others see only their files
         if (!$request->user()->isAdmin()) {
             $query->where('uploaded_by', $request->user()->id);
         }
@@ -43,13 +42,8 @@ class FileController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created file.
-     * Admin only - can upload binary file OR external link (both optional)
-     */
     public function store(Request $request)
     {
-        // Only admins can upload files
         if (!$request->user()->isAdmin()) {
             throw ValidationException::withMessages([
                 'message' => 'Only administrators can upload files',
@@ -57,14 +51,13 @@ class FileController extends Controller
         }
 
         $validated = $request->validate([
-            'file' => 'nullable|file|max:102400', // 100MB max for direct upload
+            'file' => 'nullable|file|max:102400',
             'external_link' => 'nullable|url|max:500',
             'name' => 'nullable|string|max:255',
             'fileable_type' => 'nullable|string|in:project,task',
             'fileable_id' => 'nullable|integer|exists:projects,id',
         ]);
 
-        // Require either file or external_link
         if (!$request->hasFile('file') && empty($validated['external_link'])) {
             throw ValidationException::withMessages([
                 'file' => 'Either a file or external_link must be provided',
@@ -74,7 +67,6 @@ class FileController extends Controller
         $file = new File();
         $file->uploaded_by = $request->user()->id;
 
-        // Handle external link (e.g., Google Drive)
         if (!empty($validated['external_link'])) {
             $file->is_external = true;
             $file->external_link = $validated['external_link'];
@@ -85,23 +77,14 @@ class FileController extends Controller
             $file->disk = 'external';
         }
 
-        // Handle binary file upload
         if ($request->hasFile('file')) {
             $uploadedFile = $request->file('file');
             
-            // For files > 10MB, suggest using external link
-            if ($uploadedFile->getSize() > 10 * 1024 * 1024) {
-                // Still allow upload but could add warning in response
-            }
-
             $originalName = $uploadedFile->getClientOriginalName();
             $mimeType = $uploadedFile->getMimeType();
             $size = $uploadedFile->getSize();
 
-            // Generate unique filename
             $filename = uniqid() . '_' . time() . '_' . $uploadedFile->hashName();
-
-            // Store file
             $path = $uploadedFile->storeAs('uploads', $filename, 'public');
 
             $file->name = $filename;
@@ -113,13 +96,11 @@ class FileController extends Controller
             $file->disk = 'public';
         }
 
-        // Use provided name if available
         if (!empty($validated['name'])) {
             $file->name = $validated['name'];
             $file->original_name = $validated['name'];
         }
 
-        // Attach to model if provided
         if (!empty($validated['fileable_type']) && !empty($validated['fileable_id'])) {
             if ($validated['fileable_type'] === 'project') {
                 $fileable = Project::find($validated['fileable_id']);
@@ -134,52 +115,45 @@ class FileController extends Controller
             $file->save();
         }
 
-        $statusCode = $file->is_external ? 201 : 201;
-
         return response()->json([
             'message' => $file->is_external ? 'External link added successfully' : 'File uploaded successfully',
             'file' => $file,
-        ], $statusCode);
+        ], 201);
     }
 
-    /**
-     * Display the specified file.
-     */
     public function show(Request $request, string $id)
     {
         $file = File::with('uploader')->findOrFail($id);
 
-        // Check authorization
         if (!$request->user()->isAdmin()) {
-            if ($file->uploaded_by !== $request->user()->id) {
+            if ($file->uploaded_by !== $request->user()->id && !$this->fileService->canAccess($file)) {
                 throw ValidationException::withMessages([
                     'message' => 'Unauthorized access to file',
                 ]);
             }
         }
+
+        $this->fileService->logAccess($file, 'view', $request->user()->id, $request->ip(), $request->userAgent());
 
         return response()->json([
             'file' => new FileResource($file),
         ]);
     }
 
-    /**
-     * Download/access the specified file.
-     */
     public function download(Request $request, string $id)
     {
         $file = File::findOrFail($id);
 
-        // Check authorization
         if (!$request->user()->isAdmin()) {
-            if ($file->uploaded_by !== $request->user()->id) {
+            if ($file->uploaded_by !== $request->user()->id && !$this->fileService->canDownload($file)) {
                 throw ValidationException::withMessages([
                     'message' => 'Unauthorized access to file',
                 ]);
             }
         }
 
-        // Redirect to external link if it's an external file
+        $this->fileService->logAccess($file, 'download', $request->user()->id, $request->ip(), $request->userAgent());
+
         if ($file->is_external) {
             return response()->json([
                 'url' => $file->external_link,
@@ -187,7 +161,6 @@ class FileController extends Controller
             ]);
         }
 
-        // Download from storage
         if (!Storage::disk('public')->exists($file->path)) {
             throw ValidationException::withMessages([
                 'message' => 'File not found on server',
@@ -197,9 +170,6 @@ class FileController extends Controller
         return Storage::disk('public')->download($file->path, $file->original_name);
     }
 
-    /**
-     * Update the specified file.
-     */
     public function update(Request $request, string $id)
     {
         if (!$request->user()->isAdmin()) {
@@ -233,9 +203,6 @@ class FileController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified file.
-     */
     public function destroy(Request $request, string $id)
     {
         if (!$request->user()->isAdmin()) {
@@ -246,7 +213,6 @@ class FileController extends Controller
 
         $file = File::findOrFail($id);
 
-        // Delete from storage if it's not an external link
         if (!$file->is_external && $file->path) {
             if (Storage::disk('public')->exists($file->path)) {
                 Storage::disk('public')->delete($file->path);
@@ -258,5 +224,71 @@ class FileController extends Controller
         return response()->json([
             'message' => 'File deleted successfully',
         ]);
+    }
+
+    public function share(Request $request, string $id)
+    {
+        $file = File::findOrFail($id);
+
+        if ($file->uploaded_by !== $request->user()->id) {
+            throw ValidationException::withMessages(['message' => 'Only file owner can share']);
+        }
+
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'permission' => 'nullable|string|in:view,download,edit',
+            'expires_at' => 'nullable|date',
+        ]);
+
+        $share = $this->fileService->shareFile(
+            $file,
+            $validated['user_id'],
+            $validated['permission'] ?? 'view',
+            $validated['expires_at'] ? \Carbon\Carbon::parse($validated['expires_at']) : null
+        );
+
+        $this->fileService->logAccess($file, 'share', $request->user()->id, $request->ip(), $request->userAgent());
+
+        return response()->json(['message' => 'File shared successfully', 'share' => $share]);
+    }
+
+    public function unshare(Request $request, string $id, string $userId)
+    {
+        $file = File::findOrFail($id);
+
+        if ($file->uploaded_by !== $request->user()->id) {
+            throw ValidationException::withMessages(['message' => 'Only file owner can unshare']);
+        }
+
+        $this->fileService->unshareFile($file, (int) $userId);
+
+        return response()->json(['message' => 'File unshared successfully']);
+    }
+
+    public function sharedWithMe(Request $request)
+    {
+        $files = $this->fileService->getSharedWithMe();
+
+        return response()->json(['files' => $files]);
+    }
+
+    public function sharedByMe(Request $request)
+    {
+        $files = $this->fileService->getSharedByMe();
+
+        return response()->json(['files' => $files]);
+    }
+
+    public function activity(Request $request, string $id)
+    {
+        $file = File::findOrFail($id);
+
+        if ($file->uploaded_by !== $request->user()->id && !$request->user()->isAdmin()) {
+            throw ValidationException::withMessages(['message' => 'Unauthorized']);
+        }
+
+        $activity = $this->fileService->getFileActivity($file);
+
+        return response()->json(['activity' => $activity]);
     }
 }

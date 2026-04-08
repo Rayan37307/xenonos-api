@@ -13,14 +13,10 @@ class DashboardController extends Controller
         private AnalyticsService $analyticsService
     ) {}
 
-    /**
-     * Get dashboard analytics.
-     */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        // Admin gets global analytics, others get personalized
         if ($user->isAdmin()) {
             $analytics = $this->analyticsService->getDashboardAnalytics();
         } else {
@@ -32,9 +28,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get global overview (admin only).
-     */
     public function overview(): JsonResponse
     {
         return response()->json([
@@ -42,9 +35,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get recent projects.
-     */
     public function recentProjects(): JsonResponse
     {
         $limit = request()->query('limit', 5);
@@ -54,9 +44,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get active tasks.
-     */
     public function activeTasks(): JsonResponse
     {
         $limit = request()->query('limit', 10);
@@ -66,9 +53,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get revenue statistics (admin only).
-     */
     public function revenueStats(): JsonResponse
     {
         return response()->json([
@@ -76,13 +60,74 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get worker productivity stats (admin only).
-     */
     public function workerProductivity(): JsonResponse
     {
         return response()->json([
             'productivity' => $this->analyticsService->getWorkerProductivity(),
+        ]);
+    }
+
+    public function executiveSummary(): JsonResponse
+    {
+        return response()->json([
+            'summary' => $this->analyticsService->getExecutiveSummary(),
+        ]);
+    }
+
+    public function projectSummary(Request $request): JsonResponse
+    {
+        $filters = $request->only(['status', 'client_id', 'date_from', 'date_to']);
+        
+        return response()->json(
+            $this->analyticsService->generateReport('project_summary', $filters)
+        );
+    }
+
+    public function taskSummary(Request $request): JsonResponse
+    {
+        $filters = $request->only(['status', 'priority', 'assigned_to']);
+        
+        return response()->json(
+            $this->analyticsService->generateReport('task_summary', $filters)
+        );
+    }
+
+    public function financialSummary(Request $request): JsonResponse
+    {
+        $filters = $request->only(['client_id', 'date_from', 'date_to']);
+        
+        return response()->json(
+            $this->analyticsService->generateReport('financial_summary', $filters)
+        );
+    }
+
+    public function teamPerformance(Request $request): JsonResponse
+    {
+        $filters = $request->only(['date_from', 'date_to']);
+        
+        return response()->json([
+            'team' => $this->analyticsService->generateReport('team_performance', $filters),
+        ]);
+    }
+
+    public function clientSummary(Request $request): JsonResponse
+    {
+        $filters = $request->only(['status']);
+        
+        return response()->json([
+            'clients' => $this->analyticsService->generateReport('client_summary', $filters),
+        ]);
+    }
+
+    public function timeSeries(Request $request): JsonResponse
+    {
+        $metric = $request->query('metric', 'revenue');
+        $period = $request->query('period', '30days');
+
+        return response()->json([
+            'data' => $this->analyticsService->getTimeSeriesData($metric, $period),
+            'metric' => $metric,
+            'period' => $period,
         ]);
     }
 }
