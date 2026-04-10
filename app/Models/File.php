@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class File extends Model
 {
@@ -144,6 +144,6 @@ class File extends Model
                 'is_external',
             ])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontLogEmptyChanges();
     }
 }

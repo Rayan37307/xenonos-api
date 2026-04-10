@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class ProjectDetails extends Model
 {
@@ -51,6 +51,6 @@ class ProjectDetails extends Model
             ->useLogName('project_details')
             ->logOnly(['overview', 'objectives', 'priority', 'start_date', 'end_date', 'actual_budget', 'progress', 'notes'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontLogEmptyChanges();
     }
 }

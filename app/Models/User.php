@@ -14,9 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Models\Notification;
-use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class User extends Authenticatable implements HasMedia
 {
@@ -205,16 +205,24 @@ class User extends Authenticatable implements HasMedia
         return $this->role === 'worker';
     }
 
+    /**
+     * Check if user is developer.
+     */
+    public function isDeveloper(): bool
+    {
+        return $this->role === 'developer';
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('user')
             ->logOnly(['name', 'email', 'phone_number', 'role', 'avatar', 'profile_image_link'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontLogEmptyChanges();
     }
 
-    public function tapActivity(Activity $activity, string $eventName): void
+    public function beforeActivityLogged(Activity $activity, string $eventName): void
     {
         if ($eventName === 'created' && $activity->causer_id === null) {
             $activity->causer()->associate($this);

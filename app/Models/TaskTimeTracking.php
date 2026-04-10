@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class TaskTimeTracking extends Model
 {
@@ -80,6 +80,6 @@ class TaskTimeTracking extends Model
             ->useLogName('time_tracking')
             ->logOnly(['task_id', 'user_id', 'started_at', 'ended_at', 'duration_seconds'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontLogEmptyChanges();
     }
 }

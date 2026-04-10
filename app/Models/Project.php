@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class Project extends Model
 {
@@ -147,6 +147,6 @@ class Project extends Model
             ->useLogName('project')
             ->logOnly(['name', 'description', 'client_id', 'status', 'budget', 'deadline'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontLogEmptyChanges();
     }
 }

@@ -66,6 +66,23 @@ class RoleSeeder extends Seeder
             'view-analytics',
         ]);
 
+        // Create developer role
+        $developer = Role::firstOrCreate(['name' => 'developer']);
+        $developer->syncPermissions([
+            'view-all-projects',
+            'manage-projects',
+            'create-projects',
+            'edit-projects',
+            'view-all-tasks',
+            'manage-tasks',
+            'create-tasks',
+            'edit-tasks',
+            'assign-tasks',
+            'send-messages',
+            'view-analytics',
+        ]);
+
         $this->command->info('Roles and permissions created successfully!');
+        $this->command->info('Roles: admin, client, worker, developer');
     }
 }
