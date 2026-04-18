@@ -260,4 +260,21 @@ class TaskController extends Controller
             'tasks' => TaskResource::collection($tasks),
         ]);
     }
+
+    /**
+     * Get tasks by project for assignment dropdown.
+     */
+    public function byProject(int $projectId): JsonResponse
+    {
+        $tasks = $this->taskService->getByProject($projectId);
+
+        return response()->json([
+            'tasks' => $tasks->map(fn($task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'status' => $task->status,
+                'assigned_to' => $task->assigned_to,
+            ]),
+        ]);
+    }
 }

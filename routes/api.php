@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\User\UserActivityController;
 use App\Http\Controllers\Api\User\AdminUserController;
 use App\Http\Controllers\Api\Admin\SystemLogController;
 use App\Http\Controllers\Api\Admin\SignupInviteController;
+use App\Http\Controllers\Api\Admin\RoleController;
 use App\Http\Controllers\Api\SignupInviteRegistrationController;
 use App\Http\Controllers\Api\Project\ProjectController;
 use App\Http\Controllers\Api\Task\TaskController;
@@ -79,10 +80,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::prefix('admin')->group(function () {
             Route::get('users', [AdminUserController::class, 'index']);
+            Route::get('users/by-project', [AdminUserController::class, 'byProject']);
+            Route::post('users/bulk-delete', [AdminUserController::class, 'bulkDestroy']);
             Route::get('users/{id}', [AdminUserController::class, 'show']);
             Route::put('users/{id}', [AdminUserController::class, 'update']);
             Route::delete('users/{id}', [AdminUserController::class, 'destroy']);
             Route::get('workers', [AdminUserController::class, 'workers']);
+            Route::get('workers/{id}/load', [AdminUserController::class, 'workerLoad']);
             Route::get('clients', [ClientController::class, 'index']);
             Route::get('clients/{client}', [ClientController::class, 'show']);
             Route::post('clients', [ClientController::class, 'store']);
@@ -112,6 +116,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::get('system-logs/stats', [SystemLogController::class, 'stats']);
             Route::get('system-logs/{id}', [SystemLogController::class, 'show']);
             Route::delete('system-logs/{id}', [SystemLogController::class, 'destroy']);
+
+            // Role & Permission routes (admin only)
+            Route::get('roles', [RoleController::class, 'index']);
+            Route::get('roles/permissions', [RoleController::class, 'permissions']);
+            Route::get('roles/{id}', [RoleController::class, 'show']);
+            Route::get('roles/{id}/activity-log', [RoleController::class, 'activityLog']);
+            Route::post('roles', [RoleController::class, 'store']);
+            Route::put('roles/{id}', [RoleController::class, 'update']);
+            Route::patch('roles/{id}/permissions', [RoleController::class, 'updatePermissions']);
+            Route::post('roles/{id}/duplicate', [RoleController::class, 'duplicate']);
+            Route::delete('roles/{id}', [RoleController::class, 'destroy']);
+            Route::post('roles/{id}/assign-users', [RoleController::class, 'assignUsers']);
+            Route::post('roles/{id}/unassign-users', [RoleController::class, 'unassignUsers']);
 
             // Chat Moderation Admin routes
             Route::get('flagged-messages', [ChatModerationController::class, 'getFlaggedMessages']);
@@ -168,6 +185,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/analytics', [TaskController::class, 'analytics']);
         Route::get('/upcoming', [TaskController::class, 'upcoming']);
         Route::get('/overdue', [TaskController::class, 'overdue']);
+        Route::get('/project/{projectId}/list', [TaskController::class, 'byProject']);
         Route::get('/{id}', [TaskController::class, 'show']);
         Route::put('/{id}', [TaskController::class, 'update']);
         Route::delete('/{id}', [TaskController::class, 'destroy']);

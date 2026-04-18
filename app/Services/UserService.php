@@ -102,4 +102,44 @@ class UserService
             'total_hours_tracked' => $user->timeTracking()->sum('duration_seconds') / 3600,
         ];
     }
+
+    /**
+     * Get users filtered by project.
+     */
+    public function getByProject(int $projectId): Collection
+    {
+        return User::whereHas('assignedProjects', function ($q) use ($projectId) {
+            $q->where('projects.id', $projectId);
+        })->with('assignedProjects')->get();
+    }
+
+    /**
+     * Bulk delete users.
+     */
+    public function bulkDelete(array $ids): int
+    {
+        return User::whereIn('id', $ids)->delete();
+    }
+
+    /**
+     * Get worker's project load percentage.
+     */
+    public function getWorkerLoad(int $workerId): array
+    {
+        $worker = User::with('assignedProjects')->findOrFail($workerId);
+        $maxProjects = 5;
+        $currentProjects = $worker->assignedProjects()->count();
+        $loadPercentage = min(100, ($currentProjects / $maxProjects) * 100);
+
+        return [
+            'worker_id' => $workerId,
+            'current_projects' => $currentProjects,
+            'max_projects' => $maxProjects,
+            'load_percentage' => round($loadPercentage),
+            'projects' => $worker->assignedProjects->map(fn($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+            ]),
+        ];
+    }
 }

@@ -49,7 +49,7 @@ class AdminUserController extends Controller
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-            'role' => ['sometimes', 'in:admin,client,worker'],
+            'role' => ['sometimes', 'in:admin,client,worker,developer'],
             'company_name' => ['sometimes', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
@@ -98,5 +98,48 @@ class AdminUserController extends Controller
         return response()->json([
             'clients' => UserResource::collection($clients),
         ]);
+    }
+
+    /**
+     * Get users by project.
+     */
+    public function byProject(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['required', 'exists:projects,id'],
+        ]);
+
+        $users = $this->userService->getByProject($validated['project_id']);
+
+        return response()->json([
+            'users' => UserResource::collection($users),
+        ]);
+    }
+
+    /**
+     * Bulk delete users.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        $count = $this->userService->bulkDelete($validated['ids']);
+
+        return response()->json([
+            'message' => "{$count} user(s) deleted successfully",
+        ]);
+    }
+
+    /**
+     * Get worker's project load.
+     */
+    public function workerLoad(int $id): JsonResponse
+    {
+        $load = $this->userService->getWorkerLoad($id);
+
+        return response()->json($load);
     }
 }

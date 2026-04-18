@@ -396,4 +396,14 @@ class TaskService
             ->orderBy('deadline')
             ->get();
     }
+
+    /**
+     * Get tasks by project for dropdown.
+     */
+    public function getByProject(int $projectId): Collection
+    {
+        return Task::where('project_id', $projectId)
+            ->orderBy('title')
+            ->get();
+    }
 }
